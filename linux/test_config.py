@@ -26,6 +26,18 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(loaded.data['tap_sound'], 'squeak')
         self.assertEqual(list(self.path.parent.glob('.config-*')), [])
 
+    def test_custom_sound_path_survives_restart_and_builtin_selection(self):
+        config = Config(STYLES, self.path)
+        sound = str(Path(self.tmp.name) / 'custom tap ü.wav')
+        config.update(tap_sound=sound)
+        self.assertEqual(Config(STYLES, self.path).data['tap_sound'], sound)
+        # Relative paths and embedded NULs cannot become playback filenames.
+        for invalid in ('relative.wav', sound + '\0', '', None):
+            config.update(tap_sound=invalid)
+            self.assertEqual(config.data['tap_sound'], sound)
+        config.update(tap_sound='pop')
+        self.assertEqual(Config(STYLES, self.path).data['tap_sound'], 'pop')
+
     def test_malformed_fields_cannot_reach_renderer(self):
         self.path.parent.mkdir()
         self.path.write_text(json.dumps(dict(style=[], pins=['glove', 'glove', {}, 'missing'],
