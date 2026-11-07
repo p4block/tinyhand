@@ -12,7 +12,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from collections import OrderedDict
 
-from config import Config
+from config import Config, SOUNDS
 from styles import STYLES, ink_color
 
 # Layer-shell must load before GTK links libwayland (upstream requirement).
@@ -123,21 +123,24 @@ class TapSound:
             self.lib.ca_context_destroy.argtypes = [ctypes.c_void_p]
             if self.lib.ca_context_create(ctypes.byref(self.context)) < 0:
                 raise RuntimeError('cannot create audio context')
-            self.props = (ctypes.c_char_p(b'event.id'), ctypes.c_char_p(b'tinyhand-tap'),
-                          ctypes.c_char_p(b'media.filename'),
-                          ctypes.c_char_p(os.fsencode(ASSETS / 'sounds/tap_wood.wav')),
-                          ctypes.c_char_p(b'canberra.cache-control'), ctypes.c_char_p(b'permanent'),
-                          ctypes.c_void_p())
-            result = self.lib.ca_context_cache(self.context, *self.props)
-            if result < 0:
-                raise RuntimeError(f'audio cache error {result}')
+            self.samples = {}
+            for choice in SOUNDS:
+                props = (ctypes.c_char_p(b'event.id'), ctypes.c_char_p(f'tinyhand-tap-{choice}'.encode()),
+                         ctypes.c_char_p(b'media.filename'),
+                         ctypes.c_char_p(os.fsencode(ASSETS / f'sounds/tap_{choice}.wav')),
+                         ctypes.c_char_p(b'canberra.cache-control'), ctypes.c_char_p(b'permanent'),
+                         ctypes.c_void_p())
+                result = self.lib.ca_context_cache(self.context, *props)
+                if result < 0:
+                    raise RuntimeError(f'{choice}: audio cache error {result}')
+                self.samples[choice] = props
         except (OSError, RuntimeError) as error:
             print(f'Tap audio unavailable: {error}', file=sys.stderr)
             self.close()
 
-    def play(self):
+    def play(self, choice='thock'):
         if self.lib and self.context:
-            result = self.lib.ca_context_play(self.context, ctypes.c_uint32(0), *self.props)
+            result = self.lib.ca_context_play(self.context, ctypes.c_uint32(0), *self.samples[choice])
             if result < 0:
                 print(f'Tap audio playback error {result}', file=sys.stderr)
 
@@ -282,6 +285,7 @@ class Overlay(Gtk.Window):
             self.canvas.remove_tick_callback(self.tick_id)
             self.tick_id = 0
         self.toolbar.menu.popdown()
+        self.toolbar.sound_menu.popdown()
 
     def track_toolbar(self, _, x, y):
         if self.app.benchmark:
@@ -299,7 +303,7 @@ class Overlay(Gtk.Window):
     def hide_toolbar(self):
         focus = self.get_focus()
         focused = focus and (focus == self.toolbar or focus.is_ancestor(self.toolbar))
-        if not self.toolbar.menu.get_active() and not focused:
+        if not self.toolbar.menu.get_active() and not self.toolbar.sound_menu.get_active() and not focused:
             # Pointer within the toolbar retains controls, even after startup.
             if not self.toolbar_hover:
                 self.revealer.set_reveal_child(False)
@@ -323,7 +327,7 @@ class Overlay(Gtk.Window):
         self.point = (x, y)
         self.press = 1
         if self.app.sound_enabled():
-            self.app.sound.play()
+            self.app.sound.play(self.app.config.data['tap_sound'])
         if gesture.get_current_button() == 1 and not self.held:
             self.held = True
             self.strokes.append([self.point])
@@ -343,9 +347,10 @@ class Overlay(Gtk.Window):
         self.canvas.queue_draw()
 
     def key(self, _, keyval, _keycode, _state):
-        if self.toolbar.menu.get_active():
+        if self.toolbar.menu.get_active() or self.toolbar.sound_menu.get_active():
             if keyval == Gdk.KEY_Escape:
                 self.toolbar.menu.popdown()
+                self.toolbar.sound_menu.popdown()
                 return True
             return False
         if keyval == Gdk.KEY_Escape:
@@ -482,8 +487,17 @@ class App:
         key = 'laser_sound' if self.style == 'laser' else 'hand_sound'
         return not self.session_mute and self.config.data[key]
 
+    def pick_sound(self, choice):
+        if choice not in SOUNDS:
+            return
+        self.save(tap_sound=choice)
+        self.set_sound_enabled(True)
+        self.sound.play(choice)
+
     def toggle_sound(self):
-        enabled = not self.sound_enabled()
+        self.set_sound_enabled(not self.sound_enabled())
+
+    def set_sound_enabled(self, enabled):
         self.session_mute = False
         self.save(**{('laser_sound' if self.style == 'laser' else 'hand_sound'): enabled})
         for win in self.windows:

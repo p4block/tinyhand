@@ -17,23 +17,25 @@ class ConfigTests(unittest.TestCase):
     def test_partial_updates_preserve_choices_and_roundtrip(self):
         config = Config(STYLES, self.path)
         self.assertIsNone(config.update(style='glove', size=.2, hand_sound=False))
-        config.update(laser_sound=True)
+        config.update(laser_sound=True, tap_sound='squeak')
         loaded = Config(STYLES, self.path)
         self.assertEqual(loaded.data['style'], 'glove')
         self.assertEqual(loaded.data['size'], .2)
         self.assertFalse(loaded.data['hand_sound'])
         self.assertTrue(loaded.data['laser_sound'])
+        self.assertEqual(loaded.data['tap_sound'], 'squeak')
         self.assertEqual(list(self.path.parent.glob('.config-*')), [])
 
     def test_malformed_fields_cannot_reach_renderer(self):
         self.path.parent.mkdir()
         self.path.write_text(json.dumps(dict(style=[], pins=['glove', 'glove', {}, 'missing'],
-                                             size=float('nan'), hand_sound='false')))
+                                             size=float('nan'), hand_sound='false', tap_sound=[])))
         config = Config(STYLES, self.path)
         self.assertEqual(config.data['style'], 'lavender')
         self.assertEqual(config.data['pins'], ['glove'])
         self.assertEqual(config.data['size'], .13)
         self.assertTrue(config.data['hand_sound'])
+        self.assertEqual(config.data['tap_sound'], 'thock')
         config.update(pins=list(STYLES))
         self.assertEqual(len(config.data['pins']), 8)
 

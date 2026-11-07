@@ -12,7 +12,7 @@ from gi.repository import Gtk4LayerShell as L
 assert t.Gtk.init_check()
 tmp=tempfile.TemporaryDirectory()
 config=t.Config(t.STYLES,os.path.join(tmp.name,'config.json'))
-a=t.App(t.Hand('lavender'),.13,L,t.TapSound(False),False,config)
+a=t.App(t.Hand('lavender'),.13,L,t.TapSound(os.environ.get('TINYHAND_CHECK_AUDIO') == '1'),False,config)
 w=a.windows[0]
 errors=[]
 def check(function):
@@ -52,11 +52,27 @@ def finish():
  a.clear()
  assert not w.strokes and not w.stroke_colors
  a.quit()
+def preview(choice):
+ w.toolbar.sound_menu.popup()
+ w.toolbar.sound_buttons[choice].emit('clicked')
+ assert a.config.data['tap_sound']==choice
+ assert t.Config(t.STYLES,config.path).data['tap_sound']==choice
+ assert a.sound_enabled()
+ assert not w.strokes, 'sound controls must not draw ink'
+def sound_off():
+ w.toolbar.sound_off.emit('clicked')
+ assert not a.sound_enabled()
+ assert w.key(None,t.Gdk.KEY_Escape,0,0)
+ assert not w.toolbar.sound_menu.get_active()
+ assert a.loop.is_running(), 'Escape should close picker, not the application'
+for index, choice in enumerate(t.SOUNDS):
+ t.GLib.timeout_add(800+index*350,check(lambda choice=choice:preview(choice)))
+t.GLib.timeout_add(3200,check(sound_off))
 t.GLib.timeout_add(400,check(open_picker))
 t.GLib.timeout_add(4500,check(pick))
 t.GLib.timeout_add(5500,check(finish))
 a.loop.run()
 for win in a.windows:win.destroy()
 if errors:raise errors[0]
-print('Picker: 37 styles, 36 thumbnails; selection persistence, laser, mute, ink colors and clear passed')
+print('Sound picker: six previews, persistence, Off and Escape passed. Picker: 37 styles, 36 thumbnails; selection persistence, laser, mute, ink colors and clear passed')
 tmp.cleanup()

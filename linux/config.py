@@ -6,6 +6,9 @@ from pathlib import Path
 import tempfile
 import time
 
+SOUNDS = {'thock': 'Thock', 'click': 'Click', 'pop': 'Pop',
+          'wood': 'Wood block', 'boop': 'Boop', 'squeak': 'Squeak'}
+
 DEFAULT_PINS = ['lavender', 'glove', 'coral', 'plush', 'robot', 'laser']
 
 
@@ -14,7 +17,7 @@ class Config:
         self.styles = set(styles)
         self.path = Path(path) if path else Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'tinyhand/config.json'
         self.data = dict(version=1, style='lavender', pins=DEFAULT_PINS.copy(), size=.13,
-                         hand_sound=True, laser_sound=False)
+                         hand_sound=True, laser_sound=False, tap_sound='thock')
         self.error = None
         try:
             raw = json.loads(self.path.read_text())
@@ -36,6 +39,8 @@ class Config:
         out = {}
         if isinstance(raw.get('style'), str) and raw['style'] in self.styles:
             out['style'] = raw['style']
+        if isinstance(raw.get('tap_sound'), str) and raw['tap_sound'] in SOUNDS:
+            out['tap_sound'] = raw['tap_sound']
         size = raw.get('size')
         if type(size) in (int, float) and math.isfinite(size) and .03 <= size <= .5:
             out['size'] = size

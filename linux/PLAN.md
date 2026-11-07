@@ -109,3 +109,21 @@ Full `makepkg --cleanbuild --force --nodeps` passed using a local Git snapshot
 with identical package sources (remote source URL replaced only for the test).
 `pacman -T` confirmed all runtime/build/check dependencies installed. Package
 archive produced in `/tmp/tinyhand-makepkg`; no system installation performed.
+
+## Sound picker implemented
+
+Toolbar now has a separate sound popover with all six bundled sounds, preview,
+selected-state highlighting and Off. Selection persists as validated `tap_sound`;
+Thock is the default for files without a saved choice. Choosing a sound unmutes
+the current hand/laser group, preserving the other group's mute setting. Samples
+use distinct audio-server cache IDs; presentation taps use the selected sample.
+Escape closes either picker first; toolbar hiding respects both popovers.
+
+Verified config tests (including invalid sound IDs and roundtrip), asset tests,
+and live Sway `TINYHAND_CHECK_AUDIO=1 python3 linux/check_overlay.py`: all six
+previews, saved selection, Off, Escape, hand selection, ink colors and clear.
+User confirmed all sounds played. Hand and sound menus now close one another to
+avoid competing popup grabs. No new runtime module/dependency; current PKGBUILD
+already includes the modules and all six WAVs. Existing AUR -git installs obtain
+the change from main when rebuilt. Next: phase 2 lifecycle and remaining overlay
+features, then settings.

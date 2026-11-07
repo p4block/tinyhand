@@ -1,6 +1,7 @@
 """GTK overlay controls. Presentation gestures stay on the canvas below."""
 from gi.repository import Gtk
 from styles import STYLES
+from config import SOUNDS
 
 
 class Toolbar(Gtk.Box):
@@ -27,6 +28,27 @@ class Toolbar(Gtk.Box):
         self.mute = Gtk.Button()
         self.mute.connect('clicked', lambda *_: win.app.toggle_sound())
         self.append(self.mute)
+        self.sound_menu = Gtk.MenuButton(icon_name='audio-x-generic-symbolic', tooltip_text='Choose tap sound')
+        self.sound_menu.set_direction(Gtk.ArrowType.UP)
+        sound_popover = Gtk.Popover()
+        self.sound_menu.set_popover(sound_popover)
+        self.sound_menu.connect('notify::active', self.open_sound_picker)
+        sound_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        sound_box.append(Gtk.Label(label='Tap sound · click to preview'))
+        grid = Gtk.Grid(row_spacing=6, column_spacing=6, column_homogeneous=True)
+        self.sound_buttons = {}
+        for index, (choice, title) in enumerate(SOUNDS.items()):
+            button = Gtk.Button(label=title)
+            button.set_size_request(110, 48)
+            button.connect('clicked', lambda _, choice=choice: win.app.pick_sound(choice))
+            self.sound_buttons[choice] = button
+            grid.attach(button, index % 3, index // 3, 1, 1)
+        sound_box.append(grid)
+        self.sound_off = Gtk.Button(label='Off')
+        self.sound_off.connect('clicked', lambda *_: win.app.set_sound_enabled(False))
+        sound_box.append(self.sound_off)
+        sound_popover.set_child(sound_box)
+        self.append(self.sound_menu)
         clear = Gtk.Button(icon_name='edit-clear-all-symbolic', tooltip_text='Clear drawing (C)')
         clear.connect('clicked', lambda *_: win.app.clear())
         self.append(clear)
@@ -58,8 +80,15 @@ class Toolbar(Gtk.Box):
         self.win.app.pick(style)
         self.menu.popdown()
 
+    def open_sound_picker(self, *_):
+        if self.sound_menu.get_active():
+            self.menu.popdown()
+
     def open_picker(self, *_):
-        if not self.menu.get_active() or self.picker_built:
+        if not self.menu.get_active():
+            return
+        self.sound_menu.popdown()
+        if self.picker_built:
             return
         self.picker_built = True
         flow = Gtk.FlowBox(selection_mode=Gtk.SelectionMode.NONE,
@@ -86,5 +115,15 @@ class Toolbar(Gtk.Box):
                 else:
                     button.remove_css_class('suggested-action')
         muted = not self.win.app.sound_enabled()
+        for choice, button in self.sound_buttons.items():
+            if choice == self.win.app.config.data['tap_sound'] and not muted:
+                button.add_css_class('suggested-action')
+            else:
+                button.remove_css_class('suggested-action')
+        if muted:
+            self.sound_off.add_css_class('suggested-action')
+        else:
+            self.sound_off.remove_css_class('suggested-action')
+        self.sound_menu.set_tooltip_text('Tap sound: ' + ('Off' if muted else SOUNDS[self.win.app.config.data['tap_sound']]))
         self.mute.set_icon_name('audio-volume-muted-symbolic' if muted else 'audio-volume-high-symbolic')
         self.mute.set_tooltip_text('Unmute taps' if muted else 'Mute taps')
