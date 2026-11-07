@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=TinyHand
+Comment=Point and draw over your Wayland desktop
+Exec=tinyhand
+Icon=tinyhand
+Terminal=false
+Categories=Utility;
+Keywords=pointer;presentation;hand;drawing;wayland;
+StartupNotify=false

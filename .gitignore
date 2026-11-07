@@ -5,3 +5,10 @@ dist/
 *.dmg
 *.zip
 assets/unused/
+
+__pycache__/
+
+# Arch package build output
+/src/
+/pkg/
+/*.pkg.tar.*

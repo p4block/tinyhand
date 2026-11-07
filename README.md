@@ -15,6 +15,12 @@ A tiny hand on a stick that points at things on your Mac screen.
 
 macOS 13 or later, Apple Silicon and Intel.
 
+## Linux (Sway / Wayland)
+
+A native Linux MVP is available: `python3 linux/tinyhand.py`. Hand tracking, tap
+animation, drawing and all bundled hands work without root. **Esc** exits.
+See [Linux instructions](linux/README.md) and the [handoff plan](linux/PLAN.md).
+
 ## Install
 
 Open `TinyHand.dmg`, drag TinyHand to Applications and allow **Accessibility** when asked. It needs that to turn your clicks into taps. TinyHand updates itself.
