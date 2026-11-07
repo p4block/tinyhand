@@ -39,8 +39,9 @@ class Config:
         out = {}
         if isinstance(raw.get('style'), str) and raw['style'] in self.styles:
             out['style'] = raw['style']
-        if isinstance(raw.get('tap_sound'), str) and raw['tap_sound'] in SOUNDS:
-            out['tap_sound'] = raw['tap_sound']
+        sound = raw.get('tap_sound')
+        if isinstance(sound, str) and (sound in SOUNDS or (os.path.isabs(sound) and '\0' not in sound)):
+            out['tap_sound'] = sound
         size = raw.get('size')
         if type(size) in (int, float) and math.isfinite(size) and .03 <= size <= .5:
             out['size'] = size

@@ -1,4 +1,5 @@
 """GTK overlay controls. Presentation gestures stay on the canvas below."""
+from pathlib import Path
 from gi.repository import Gtk
 from styles import STYLES
 from config import SOUNDS
@@ -44,6 +45,11 @@ class Toolbar(Gtk.Box):
             self.sound_buttons[choice] = button
             grid.attach(button, index % 3, index // 3, 1, 1)
         sound_box.append(grid)
+        self.custom_sound = Gtk.Button(label='Choose file…')
+        self.custom_sound.connect('clicked', lambda *_: win.app.choose_sound())
+        sound_box.append(self.custom_sound)
+        self.sound_error = Gtk.Label(wrap=True, max_width_chars=40, visible=False)
+        sound_box.append(self.sound_error)
         self.sound_off = Gtk.Button(label='Off')
         self.sound_off.connect('clicked', lambda *_: win.app.set_sound_enabled(False))
         sound_box.append(self.sound_off)
@@ -124,6 +130,14 @@ class Toolbar(Gtk.Box):
             self.sound_off.add_css_class('suggested-action')
         else:
             self.sound_off.remove_css_class('suggested-action')
-        self.sound_menu.set_tooltip_text('Tap sound: ' + ('Off' if muted else SOUNDS[self.win.app.config.data['tap_sound']]))
+        choice = self.win.app.config.data['tap_sound']
+        custom = choice not in SOUNDS
+        self.custom_sound.set_label(f'Choose file… ({Path(choice).name})' if custom else 'Choose file…')
+        self.custom_sound.set_tooltip_text(choice if custom else 'Select a WAV or Ogg Vorbis sound')
+        if custom and not muted:
+            self.custom_sound.add_css_class('suggested-action')
+        else:
+            self.custom_sound.remove_css_class('suggested-action')
+        self.sound_menu.set_tooltip_text('Tap sound: ' + ('Off' if muted else SOUNDS.get(choice, Path(choice).name)))
         self.mute.set_icon_name('audio-volume-muted-symbolic' if muted else 'audio-volume-high-symbolic')
         self.mute.set_tooltip_text('Unmute taps' if muted else 'Mute taps')

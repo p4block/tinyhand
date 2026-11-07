@@ -109,7 +109,7 @@ def rect(x, y, w, h):
 
 
 class TapSound:
-    """Let the audio server cache the sample; no process spawning per click."""
+    """Cache bundled samples on the audio server; play custom files by path."""
     def __init__(self, enabled=True):
         self.context = ctypes.c_void_p()
         self.lib = None
@@ -140,9 +140,17 @@ class TapSound:
 
     def play(self, choice='thock'):
         if self.lib and self.context:
-            result = self.lib.ca_context_play(self.context, ctypes.c_uint32(0), *self.samples[choice])
+            if choice in self.samples:
+                props = self.samples[choice]
+            else:
+                props = (ctypes.c_char_p(b'media.filename'), ctypes.c_char_p(os.fsencode(choice)),
+                         ctypes.c_char_p(b'canberra.cache-control'), ctypes.c_char_p(b'never'),
+                         ctypes.c_void_p())
+            result = self.lib.ca_context_play(self.context, ctypes.c_uint32(0), *props)
             if result < 0:
                 print(f'Tap audio playback error {result}', file=sys.stderr)
+            return result >= 0
+        return False
 
     def close(self):
         if self.lib and self.context:
@@ -419,6 +427,7 @@ class App:
         self.cpu_started = time.process_time()
         self.loop = GLib.MainLoop()
         self.windows = []
+        self.sound_chooser = None
         self.display = Gdk.Display.get_default()
         provider = Gtk.CssProvider()
         provider.load_from_data(b'''
@@ -487,6 +496,46 @@ class App:
         key = 'laser_sound' if self.style == 'laser' else 'hand_sound'
         return not self.session_mute and self.config.data[key]
 
+    def choose_sound(self):
+        if self.sound_chooser is not None:
+            return
+        chooser = Gtk.FileChooserNative.new('Choose tap sound', None,
+                                            Gtk.FileChooserAction.OPEN, 'Select', 'Cancel')
+        chooser.set_modal(True)
+        audio = Gtk.FileFilter()
+        audio.set_name('Sound files (WAV, Ogg Vorbis)')
+        for pattern in ('*.wav', '*.WAV', '*.ogg', '*.OGG', '*.oga', '*.OGA'):
+            audio.add_pattern(pattern)
+        chooser.add_filter(audio)
+        self.sound_chooser = chooser
+        chooser.connect('response', self.sound_chosen)
+        # Layer-shell overlays otherwise keep input above a normal file chooser.
+        for win in self.windows:
+            win.toolbar.sound_menu.popdown()
+            win.toolbar.sound_error.set_visible(False)
+            win.held = False
+            win.press = 0
+            win.hide()
+        chooser.show()
+
+    def sound_chosen(self, chooser, response):
+        selected = chooser.get_file() if response == Gtk.ResponseType.ACCEPT else None
+        path = selected.get_path() if selected else None
+        chooser.destroy()
+        self.sound_chooser = None
+        for win in self.windows:
+            win.present()
+        if selected and (not path or not self.sound.play(path)):
+            for win in self.windows:
+                win.toolbar.sound_error.set_text(
+                    'Could not play this file. Choose a local WAV or Ogg Vorbis file '
+                    'and check that tap audio is available.')
+                win.toolbar.sound_error.set_visible(True)
+                win.toolbar.sound_menu.popup()
+        elif path:
+            self.save(tap_sound=path)
+            self.set_sound_enabled(True)
+
     def pick_sound(self, choice):
         if choice not in SOUNDS:
             return
@@ -537,8 +586,14 @@ class App:
             win.destroy()
         self.windows = [Overlay(self, self.monitors.get_item(i), self.layer)
                         for i in range(self.monitors.get_n_items())]
+        if self.sound_chooser is not None:
+            for win in self.windows:
+                win.hide()
 
     def quit(self):
+        if self.sound_chooser is not None:
+            self.sound_chooser.destroy()
+            self.sound_chooser = None
         self.workers.shutdown(wait=False, cancel_futures=True)
         self.loop.quit()
         return False

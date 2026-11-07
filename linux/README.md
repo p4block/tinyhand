@@ -17,7 +17,7 @@ reports rendered frames per second and CPU usage on exit.
 Move near the **bottom edge** to reveal the toolbar. Click a pinned hand or the
 **grid button** to choose from 36 hands and a laser. Speaker toggles taps for
 hands/laser separately. The adjacent sound button opens a picker with **Thock,
-Click, Pop, Wood block, Boop, Squeak**, and **Off**. Click a sound to preview and
+Click, Pop, Wood block, Boop, Squeak**, **Choose custom sound**, and **Off**. Click a sound to preview and
 select it; the choice is saved. Thock is the default. The eraser clears ink and
 × exits. The toolbar appears
 briefly on startup and stays visible while its controls or picker are in use.
